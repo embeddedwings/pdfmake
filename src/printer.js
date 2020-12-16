@@ -504,16 +504,30 @@ function renderLine(line, x, y, pdfKitDoc) {
 		pdfKitDoc.fontSize(inline.fontSize);
 
 		var shiftedY = offsetText(y + shiftToBaseline, inline);
-		pdfKitDoc.text(inline.text, x + inline.x, shiftedY, options);
+
+		var textX = x + inline.x;
+		var textY = shiftedY;
+		if (inline.vertical) {
+			pdfKitDoc.save();
+			pdfKitDoc.rotate(90, { origin: [pdfKitDoc.page.width / 2.0, pdfKitDoc.page.height / 2.0]});
+			var diff = (pdfKitDoc.page.width - pdfKitDoc.page.height) / 2.0;
+			textX = x + inline.x + diff;
+			textY = pdfKitDoc.page.height + diff - lineHeight - shiftedY;
+		}
+
+		pdfKitDoc.text(inline.text, textX, textY, options);
 
 		if (inline.linkToPage) {
 			var _ref = pdfKitDoc.ref({ Type: 'Action', S: 'GoTo', D: [inline.linkToPage, 0, 0] }).end();
-			pdfKitDoc.annotate(x + inline.x, shiftedY, inline.width, inline.height, {
+			pdfKitDoc.annotate(textX, textY, inline.width, inline.height, {
 				Subtype: 'Link',
 				Dest: [inline.linkToPage - 1, 'XYZ', null, null, null]
 			});
 		}
 
+		if (inline.vertical) {
+			pdfKitDoc.restore();
+		}
 	}
 	// Decorations won't draw correctly for superscript
 	textDecorator.drawDecorations(line, x, y, pdfKitDoc);

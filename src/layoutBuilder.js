@@ -380,7 +380,11 @@ LayoutBuilder.prototype.processNode = function (node) {
 		var absPosition = node.absolutePosition;
 		if (absPosition) {
 			self.writer.context().beginDetachedBlock();
-			self.writer.context().moveTo(absPosition.x || 0, absPosition.y || 0);
+			if (node.vertical) {
+				self.writer.context().moveTo(absPosition.y || 0, absPosition.x || 0);
+			} else {
+				self.writer.context().moveTo(absPosition.x || 0, absPosition.y || 0);
+			}
 		}
 
 		var relPosition = node.relativePosition;
@@ -695,13 +699,82 @@ LayoutBuilder.prototype.processLeaf = function (node) {
 		}
 	}
 
+	var rectWidth = 0;
+	var rectHeight = 0;
+
+	if (node.vertical) {
+		var tempLine = line;
+		var tempInlines = node._inlines.concat();
+		var tempCurrentHeight = currentHeight;
+
+		var context = this.writer.context();
+		while (line && (maxHeight === -1 || currentHeight < maxHeight)) {
+			rectWidth = Math.max(rectWidth, line.getWidth());
+			rectHeight += line.getHeight();
+
+			context.moveDown(line.getHeight());
+			line = this.buildNextLine(node);
+			if (line) {
+				currentHeight += line.getHeight();
+			}
+		}
+
+		line = tempLine;
+		node._inlines = tempInlines;
+		currentHeight = tempCurrentHeight;
+
+		if (node.lineHeight) {
+			rectHeight += currentHeight - currentHeight / node.lineHeight;
+		}
+	}
+
 	while (line && (maxHeight === -1 || currentHeight < maxHeight)) {
-		var positions = this.writer.addLine(line);
+		var context = this.writer.context();
+		var tempX = context.x;
+		var tempY = context.y;
+
+		if (node.anchor) {
+			if (node.vertical) {
+				context.x -= node.anchor.y * rectWidth;
+				context.y -= node.anchor.x * rectHeight;
+				if (node.textAlignment) {
+					if (node.textAlignment === 'center') {
+						context.x += (rectWidth - line.getWidth()) / 2.0;
+					} else if (node.textAlignment === 'bottom') {
+						context.x += rectWidth - line.getWidth();
+					}
+				}
+			} else {
+				context.x -= node.anchor.x * rectWidth;
+				context.y -= node.anchor.y * rectHeight;
+				if (node.textAlignment) {
+					if (node.textAlignment === 'center') {
+						context.x += (rectWidth - line.getWidth()) / 2.0;
+					} else if (node.textAlignment === 'right') {
+						context.x += rectWidth - line.getWidth();
+					}
+				}
+			}
+		}
+
+		var positions;
+		if (node.vertical) {
+			context.y -= line.getHeight();
+			tempY -= line.getHeight();
+			positions = this.writer.addLine(line, true);
+		} else {
+			positions = this.writer.addLine(line);
+			tempY += line.getHeight();
+		}
+
 		node.positions.push(positions);
 		line = this.buildNextLine(node);
 		if (line) {
 			currentHeight += line.getHeight();
 		}
+
+		context.x = tempX;
+		context.y = tempY;
 	}
 };
 
@@ -770,13 +843,37 @@ LayoutBuilder.prototype.buildNextLine = function (textNode) {
 
 // images
 LayoutBuilder.prototype.processImage = function (node) {
+	var context = this.writer.context();
+	var tempX = context.x;
+	var tempY = context.y;
+
+	if (node.anchor) {
+		context.x -= node.anchor.x * node.width;
+		context.y -= node.anchor.y * node.height;
+	}
+
 	var position = this.writer.addImage(node);
 	node.positions.push(position);
+
+	context.x = tempX;
+	context.y = tempY;
 };
 
 LayoutBuilder.prototype.processSVG = function (node) {
+	var context = this.writer.context();
+	var tempX = context.x;
+	var tempY = context.y;
+
+	if (node.anchor) {
+		context.x -= node.anchor.x * node.width;
+		context.y -= node.anchor.y * node.height;
+	}
+
 	var position = this.writer.addSVG(node);
 	node.positions.push(position);
+
+	context.x = tempX;
+	context.y = tempY;
 };
 
 LayoutBuilder.prototype.processCanvas = function (node) {

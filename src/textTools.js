@@ -317,6 +317,9 @@ function measure(fontProvider, textArray, styleContextStack) {
 		var opacity = getStyleProperty(item, styleContextStack, 'opacity', 1);
 		var sup = getStyleProperty(item, styleContextStack, 'sup', false);
 		var sub = getStyleProperty(item, styleContextStack, 'sub', false);
+		var vertical = getStyleProperty(item, styleContextStack, 'vertical', false);
+		var textAlignment = getStyleProperty(item, styleContextStack, 'textAlignment', null);
+		var anchor = getStyleProperty(item, styleContextStack, 'anchor', null);
 
 		if ((sup || sub) && item.fontSize === undefined) {
 			// font size reduction taken from here: https://en.wikipedia.org/wiki/Subscript_and_superscript#Desktop_publishing
@@ -361,6 +364,9 @@ function measure(fontProvider, textArray, styleContextStack) {
 		item.opacity = opacity;
 		item.sup = sup;
 		item.sub = sub;
+		item.vertical = vertical;
+		item.textAlignment = textAlignment;
+		item.anchor = anchor;
 	});
 
 	return normalized;
